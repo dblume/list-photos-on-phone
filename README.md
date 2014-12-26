@@ -9,7 +9,7 @@ You need Windows Python and Python for Windows Extensions Pywin32 (218) for this
 It relies on a YAML data file, name-to-path.yaml, that maps from a name in the iPhone's name to the local directory to which you want those photos copied.  For example,
 
     richard: C:\Users\Richard\Pictures\iPhone
-    arlene: C:\Users\Arlene\Pictures
+    arline: C:\Users\Arline\Pictures
 
 Run the script like so:
 
