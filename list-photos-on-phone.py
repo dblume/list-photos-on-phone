@@ -1,6 +1,6 @@
 #!/usr/bin/python
-# A Windows command line script to find the photos that haven't been
-# copied to the local machine yet.
+# A command-line script for the Windows OS to find the photos that haven't been
+# copied from a connected iPhone to the local machine yet.
 
 import os
 import sys
@@ -14,6 +14,21 @@ import yaml
 __author__ = "David Blume"
 __copyright__ = "Copyright 2014, David Blume"
 __license__ = "http://www.wtfpl.net/"
+
+
+def set_v_print(verbose):
+    """
+    Defines the function v_print.
+    It prints if verbose is true, otherwise, it does nothing.
+    See: http://stackoverflow.com/questions/5980042
+    :param verbose: A bool to determine if v_print will print its args.
+    """
+    global v_print
+    if verbose:
+        def v_print(*s):
+            print " ".join(s)
+    else:
+        v_print = lambda *s: None
 
 
 def process_photos(folder, photo_dict, prev_image):
@@ -88,8 +103,7 @@ def get_dcim_folder(device_pidl, parent):
     try:
         for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
             name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
-            if name == "Internal Storage":
-                break
+            break  # Only want to see the first folder.
         if name != "Internal Storage":
             return None, None, device_name
     except pywintypes.com_error:
@@ -98,8 +112,7 @@ def get_dcim_folder(device_pidl, parent):
     folder = folder.BindToObject(pidl, None, shell.IID_IShellFolder)
     for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
         name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
-        if name == "DCIM":
-            break
+        break  # Only want to see the first folder.
     if name != "DCIM":
         return None, None, device_name
 
@@ -145,6 +158,11 @@ def get_prev_image(path):
 
 
 def main(all_images):
+    """
+    Find a connected iPhone, and print the paths to images on it.
+    :param all_images: Whether or not to list all images on the phone, or
+                       only those newer than those found on disk.
+    """
     start_time = time.time()
     localdir = os.path.abspath(os.path.dirname(sys.argv[0]))
     desktop = shell.SHGetDesktopFolder()
@@ -175,13 +193,7 @@ if __name__ == '__main__':
     parser.add_option("-a", "--all", action="store_true")
     parser.set_defaults(verbose=False, all=False)
     options, args = parser.parse_args()
-    if options.verbose:
-        def v_print(*s):  # http://stackoverflow.com/questions/5980042
-            for arg in s:
-                print arg,
-            print
-    else:
-        v_print = lambda *s: None
+    set_v_print(options.verbose)
     if len(args) > 0:
         parser.error("incorrect number of arguments")
         sys.exit(1)
