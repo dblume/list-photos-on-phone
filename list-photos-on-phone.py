@@ -7,14 +7,13 @@ import sys
 import time
 from optparse import OptionParser
 from win32com.shell import shell, shellcon
+import pywintypes
 from collections import defaultdict
 import yaml
 
 __author__ = "David Blume"
 __copyright__ = "Copyright 2014, David Blume"
 __license__ = "http://www.wtfpl.net/"
-
-g_verbose = False
 
 
 def process_photos(folder, photo_dict, prev_image):
@@ -83,13 +82,18 @@ def get_dcim_folder(device_pidl, parent):
     name = None
     pidl = None
 
+    v_print("Checking if %s is an iPhone." % device_name)
+
     folder = parent.BindToObject(device_pidl, None, shell.IID_IShellFolder)
-    for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
-        name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
-        if name == "Internal Storage":
-            break
-    if name != "Internal Storage":
-        return None, None, device_name
+    try:
+        for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
+            name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
+            if name == "Internal Storage":
+                break
+        if name != "Internal Storage":
+            return None, None, device_name
+    except pywintypes.com_error:
+        return None, None, device_name  # No problem, must not be an iPhone
 
     folder = folder.BindToObject(pidl, None, shell.IID_IShellFolder)
     for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
@@ -110,8 +114,7 @@ def get_destination_for_phone(localdir, iphone_name):
     names = yaml.load(file(os.path.join(localdir, "name-to-path.yaml"), "r"))
     for k in names:
         if k in iphone_name.lower():
-            if g_verbose:
-                print "Local photo directory: %s" % (names[k], )
+            v_print("Local photo directory: %s" % (names[k], ))
             return names[k]
     return None
 
@@ -137,8 +140,7 @@ def get_prev_image(path):
                     basename = basename[basename.find("IMG_"):]
                     if prev_basename is None or prev_basename < basename:
                         prev_basename = basename
-    if g_verbose:
-        print "The most recent image already on the computer is", prev_basename
+    v_print("The most recent image already on the computer is", prev_basename)
     return prev_basename
 
 
@@ -162,8 +164,8 @@ def main(all_images):
                         prev_image = get_prev_image(dest)
                     walk_dcim_folder(dcim_pidl, parent, prev_image)
                     break
-    if g_verbose:
-        print "Done. That took %1.2fs." % (time.time() - start_time)
+            break
+    v_print("Done. That took %1.2fs." % (time.time() - start_time))
 
 
 if __name__ == '__main__':
@@ -173,7 +175,13 @@ if __name__ == '__main__':
     parser.add_option("-a", "--all", action="store_true")
     parser.set_defaults(verbose=False, all=False)
     options, args = parser.parse_args()
-    g_verbose = options.verbose
+    if options.verbose:
+        def v_print(*s):  # http://stackoverflow.com/questions/5980042
+            for arg in s:
+                print arg,
+            print
+    else:
+        v_print = lambda *s: None
     if len(args) > 0:
         parser.error("incorrect number of arguments")
         sys.exit(1)
