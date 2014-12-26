@@ -6,7 +6,7 @@ This is a simple Python script to run on a Windows system with an iPhone attache
 
 You need Windows Python and Python for Windows Extensions Pywin32 (218) for this script to work.
 
-It relies on a YAML data file, name-to-path.py, that maps from a name in the iPhone's name to the local directory to which you want those photos copied.  For example,
+It relies on a YAML data file, name-to-path.yaml, that maps from a name in the iPhone's name to the local directory to which you want those photos copied.  For example,
 
     richard: C:\Users\Richard\Pictures\iPhone
     arlene: C:\Users\Arlene\Pictures
