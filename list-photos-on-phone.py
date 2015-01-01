@@ -31,12 +31,13 @@ def set_v_print(verbose):
         v_print = lambda *s: None
 
 
-def process_photos(folder, photo_dict, prev_image):
+def process_photos(folder, photo_dict, prev_index):
     """
-    Adds photos to photo_dict if they are newer than prev_image.
+    Adds photos to photo_dict if they are newer than prev_index.
     :param folder: The PIDL of the folder to walk.
     :param photo_dict: A defaultdict of pathname to list of photos.
-    :param prev_image: The most recent photo already copied to the local disk.
+    :param prev_index: The index in the filename of the most recent photo
+                       already copied to the local disk
     """
     for pidl in folder.EnumObjects(0, shellcon.SHCONTF_NONFOLDERS):
         name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_FORADDRESSBAR)
@@ -61,24 +62,25 @@ def process_photos(folder, photo_dict, prev_image):
             # stream = item.BindToHandler(0, shell.BHID_Stream, ???)
 
             # Experiment 4: List only the images that are newer.
-            if prev_image is None or basename > prev_image:
+            if index_from_filename(basename) > prev_index:
                 photo_dict[dirname].append(name)
 
 
-def walk_dcim_folder(dcim_pidl, parent, prev_image):
+def walk_dcim_folder(dcim_pidl, parent, prev_index):
     """
     Iterates all the subfolders of the iPhone's DCIM directory, gathering
     photos that need to be processed in photo_dict.
 
     :param dcim_pidl: A PIDL for the iPhone's DCIM folder
     :param parent: The parent folder of the PIDL
-    :param prev_image: The most recent photo already copied to the local disk
+    :param prev_index: The index in the filename of the most recent photo
+                       already copied to the local disk
     """
     photo_dict = defaultdict(list)
     dcim_folder = parent.BindToObject(dcim_pidl, None, shell.IID_IShellFolder)
     for pidl in dcim_folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
         folder = dcim_folder.BindToObject(pidl, None, shell.IID_IShellFolder)
-        process_photos(folder, photo_dict, prev_image)
+        process_photos(folder, photo_dict, prev_index)
 
     for key in photo_dict:
         for item in sorted(photo_dict[key]):
@@ -132,29 +134,42 @@ def get_destination_for_phone(localdir, iphone_name):
     return None
 
 
+def index_from_filename(filename):
+    """
+    Return the index number in the filename
+    :param filename: Filename of the form IMG_5555.JPG.
+    """
+    return int(filename[4:])
+
+
 def get_prev_image(path):
     """
-    Return the most recent image already found in the specified directory.
+    Return the number in the filename of the most recent image already found
+    in the specified directory.
     :param path: The path to search.
     """
-    prev_basename = None
+    prev_index = -1
     for root, dirs, files in os.walk(path):
         for name in files:
             basename, ext = os.path.splitext(name)
             basename = basename.upper()
             ext = ext.upper()
-            if ext == ".JPG":
-                if prev_basename is None or prev_basename < basename:
-                    prev_basename = basename
+            if ext == ".JPG" and basename.startswith("IMG_"):
+                index = index_from_filename(basename)
+                if prev_index < index:
+                    prev_index = index
             elif ext == ".TXT":
                 # Maybe it's a special .jpg.txt file.
                 basename, ext = os.path.splitext(basename)
-                if ext.upper() == ".JPG":
+                if ext == ".JPG":
                     basename = basename[basename.find("IMG_"):]
-                    if prev_basename is None or prev_basename < basename:
-                        prev_basename = basename
-    v_print("The most recent image already on the computer is", prev_basename)
-    return prev_basename
+                    index = index_from_filename(basename)
+                    if prev_index < index:
+                        prev_index = index
+
+    v_print("The most recent image already on the computer had index %04d." %
+            prev_index)
+    return prev_index
 
 
 def main(all_images):
@@ -176,11 +191,11 @@ def main(all_images):
                 dcim_pidl, parent, iphone_name = get_dcim_folder(dpidl, folder)
                 if dcim_pidl is not None:
                     if all_images:
-                        prev_image = None
+                        prev_index = -1
                     else:
                         dest = get_destination_for_phone(localdir, iphone_name)
-                        prev_image = get_prev_image(dest)
-                    walk_dcim_folder(dcim_pidl, parent, prev_image)
+                        prev_index = get_prev_image(dest)
+                    walk_dcim_folder(dcim_pidl, parent, prev_index)
                     break
             break
     v_print("Done. That took %1.2fs." % (time.time() - start_time))
