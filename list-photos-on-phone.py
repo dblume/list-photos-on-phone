@@ -1,11 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # A command-line script for the Windows OS to find the photos that haven't been
 # copied from a connected iPhone to the local machine yet.
 
 import os
 import sys
 import time
-from optparse import OptionParser
+from argparse import ArgumentParser
 from win32com.shell import shell, shellcon
 import pywintypes
 from collections import defaultdict
@@ -202,14 +202,10 @@ def main(all_images):
 
 
 if __name__ == '__main__':
-    parser = OptionParser(usage="usage: %prog [options]",
-                          version="%prog 0.0")
-    parser.add_option("-v", "--verbose", action="store_true")
-    parser.add_option("-a", "--all", action="store_true")
+    parser = ArgumentParser()
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-a", "--all", action="store_true")
     parser.set_defaults(verbose=False, all=False)
-    options, args = parser.parse_args()
-    set_v_print(options.verbose)
-    if len(args) > 0:
-        parser.error("incorrect number of arguments")
-        sys.exit(1)
-    main(options.all)
+    args = parser.parse_args()
+    set_v_print(args.verbose)
+    main(args.all)
