@@ -11,10 +11,15 @@ engines:
       - php
   pep8:
     enabled: true
+    checks:
+      E731:
+        enabled: false
   fixme:
     enabled: true
   radon:
     enabled: true
+    config:
+      python_version: 2
 ratings:
   paths:
   - "**.inc"

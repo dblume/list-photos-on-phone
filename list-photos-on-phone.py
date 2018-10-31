@@ -44,25 +44,8 @@ def process_photos(folder, photo_dict, prev_index):
         dirname = os.path.dirname(name)
         basename, ext = os.path.splitext(os.path.basename(name))
         if ext.endswith("JPG"):
-            # Failed Experiment 1: Get creation date
-            # SHGetDataFromIDList() does not exist
-            # data = shell.SHGetDataFromIDList(folder, pidl,
-            #             shellcon.SHGDFIL_FINDDATA)
-
-            # Failed Experiment 2: Get creation date
-            # raises pywintypes.com_error: ('The parameter is incorrect.')
-            # requires: from win32com.propsys import pscon
-            # item = shell.SHCreateItemFromIDList(pidl, shell.IID_IShellItem2)
-            # filetime = item.GetFileTime(pscon.PKEY_DateCreated)
-
-            # Failed Experiment 3: Open file to stream
-            # raises TypeError: The Python instance can not be a COM object
-            # item = shell.SHCreateItemFromIDList(pidl, shell.IID_IShellItem2)
-            # Note pythoncom.IID_IStream
-            # stream = item.BindToHandler(0, shell.BHID_Stream, ???)
-
-            # Experiment 4: List only the images that are newer.
-            if index_from_filename(basename) > prev_index:
+            # List only the images that are newer.
+            if index_from_filename(name) > prev_index:
                 photo_dict[dirname].append(name)
 
 
@@ -99,14 +82,13 @@ def get_dcim_folder(device_pidl, parent):
     name = None
     pidl = None
 
-    v_print("Checking if %s is an iPhone." % device_name)
-
     folder = parent.BindToObject(device_pidl, None, shell.IID_IShellFolder)
     try:
+        top_dir_name = ""
         for pidl in folder.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
-            name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
+            top_dir_name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
             break  # Only want to see the first folder.
-        if name != "Internal Storage":
+        if top_dir_name != "Internal Storage":
             return None, None, device_name
     except pywintypes.com_error:
         return None, None, device_name  # No problem, must not be an iPhone
@@ -116,6 +98,7 @@ def get_dcim_folder(device_pidl, parent):
         name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
         break  # Only want to see the first folder.
     if name != "DCIM":
+        v_print("%s's '%s' has '%s', not a 'DCIM' dir." % (device_name, top_dir_name, name))
         return None, None, device_name
 
     return pidl, folder, device_name
@@ -124,6 +107,7 @@ def get_dcim_folder(device_pidl, parent):
 def get_destination_for_phone(localdir, iphone_name):
     """
     Read a YAML file that maps a phone's name to a local directory.
+    :param localdir: The directory path to the yaml file.
     :param iphone_name: The iPhone's name
     """
     names = yaml.load(file(os.path.join(localdir, "name-to-path.yaml"), "r"))
@@ -136,10 +120,20 @@ def get_destination_for_phone(localdir, iphone_name):
 
 def index_from_filename(filename):
     """
-    Return the index number in the filename
-    :param filename: Filename of the form IMG_5555.JPG.
+    Return the index number contained in the basename
+    :param filename: Filename commonly of the form IMG_5555.JPG.
     """
-    return int(filename[4:])
+    basename, ext = os.path.splitext(filename)
+    basename = basename.upper()
+    ext = ext.upper()
+    if ext == ".TXT":
+        # Maybe it's a special .jpg.txt file.
+        basename, ext = os.path.splitext(basename)
+        if ext == ".JPG":
+            basename = basename[basename.find("IMG_"):]
+    elif ext != ".JPG" or not basename.startswith("IMG_"):
+        return 0
+    return int(basename[4:])
 
 
 def get_prev_image(path):
@@ -151,25 +145,25 @@ def get_prev_image(path):
     prev_index = -1
     for root, dirs, files in os.walk(path):
         for name in files:
-            basename, ext = os.path.splitext(name)
-            basename = basename.upper()
-            ext = ext.upper()
-            if ext == ".JPG" and basename.startswith("IMG_"):
-                index = index_from_filename(basename)
-                if prev_index < index:
-                    prev_index = index
-            elif ext == ".TXT":
-                # Maybe it's a special .jpg.txt file.
-                basename, ext = os.path.splitext(basename)
-                if ext == ".JPG":
-                    basename = basename[basename.find("IMG_"):]
-                    index = index_from_filename(basename)
-                    if prev_index < index:
-                        prev_index = index
+            index = index_from_filename(name)
+            if prev_index < index:
+                prev_index = index
 
     v_print("The most recent image already on the computer had index %04d." %
             prev_index)
     return prev_index
+
+
+def get_computer_shellfolder():
+    """
+    Return the local computer's shell folder.
+    """
+    desktop = shell.SHGetDesktopFolder()
+    for pidl in desktop.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
+        display_name = desktop.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
+        if display_name in ("Computer", "This PC"):
+            return desktop.BindToObject(pidl, None, shell.IID_IShellFolder)
+    return None
 
 
 def main(all_images):
@@ -180,23 +174,19 @@ def main(all_images):
     """
     start_time = time.time()
     localdir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    desktop = shell.SHGetDesktopFolder()
 
-    # Find the iPhone in the Virtual Folder "Computer"
-    for pidl in desktop.EnumObjects(0, shellcon.SHCONTF_FOLDERS):
-        if desktop.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL) == "Computer":
-            folder = desktop.BindToObject(pidl, None, shell.IID_IShellFolder)
-            for dpidl in folder:
-                # If this is the iPhone, get the PIDL of its DCIM folder.
-                dcim_pidl, parent, iphone_name = get_dcim_folder(dpidl, folder)
-                if dcim_pidl is not None:
-                    if all_images:
-                        prev_index = -1
-                    else:
-                        dest = get_destination_for_phone(localdir, iphone_name)
-                        prev_index = get_prev_image(dest)
-                    walk_dcim_folder(dcim_pidl, parent, prev_index)
-                    break
+    # Find the iPhone in the virtual folder for the local computer.
+    computer_folder = get_computer_shellfolder()
+    for pidl in computer_folder:
+        # If this is the iPhone, get the PIDL of its DCIM folder.
+        dcim_pidl, parent, iphone_name = get_dcim_folder(pidl, computer_folder)
+        if dcim_pidl is not None:
+            if all_images:
+                prev_index = -1
+            else:
+                dest = get_destination_for_phone(localdir, iphone_name)
+                prev_index = get_prev_image(dest)
+            walk_dcim_folder(dcim_pidl, parent, prev_index)
             break
     v_print("Done. That took %1.2fs." % (time.time() - start_time))
 

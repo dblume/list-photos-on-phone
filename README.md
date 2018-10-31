@@ -6,6 +6,10 @@
 
 This is a simple Python script to run on a Windows system with an iPhone attached. It iterates the photos on the phone, and lists the ones that haven't been copied to the local disk yet.
 
+### This is a Deprecated Project Now
+
+iPhones don't provide a DCIM folder when connected to Windows computers anymore.
+
 ### Getting Started
 
 You need Windows Python and Python for Windows Extensions Pywin32 (218) for this script to work.
