@@ -43,10 +43,9 @@ def process_photos(folder, photo_dict, prev_index):
         name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_FORADDRESSBAR)
         dirname = os.path.dirname(name)
         basename, ext = os.path.splitext(os.path.basename(name))
-        if ext.endswith("JPG"):
-            # List only the images that are newer.
-            if index_from_filename(name) > prev_index:
-                photo_dict[dirname].append(name)
+        # List only the images that are newer.
+        if ext.endswith("JPG") and index_from_filename(name) > prev_index:
+            photo_dict[dirname].append(name)
 
 
 def walk_dcim_folder(dcim_pidl, parent, prev_index):
@@ -98,7 +97,8 @@ def get_dcim_folder(device_pidl, parent):
         name = folder.GetDisplayNameOf(pidl, shellcon.SHGDN_NORMAL)
         break  # Only want to see the first folder.
     if name != "DCIM":
-        v_print("%s's '%s' has '%s', not a 'DCIM' dir." % (device_name, top_dir_name, name))
+        v_print("%s's '%s' has '%s', not a 'DCIM' dir." %
+                (device_name, top_dir_name, name))
         return None, None, device_name
 
     return pidl, folder, device_name
