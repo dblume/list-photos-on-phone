@@ -1,7 +1,7 @@
 [![Code Climate](https://codeclimate.com/github/dblume/list-photos-on-phone/badges/gpa.svg)](https://codeclimate.com/github/dblume/list-photos-on-phone)
 [![Issue Count](https://codeclimate.com/github/dblume/list-photos-on-phone/badges/issue_count.svg)](https://codeclimate.com/github/dblume/list-photos-on-phone/issues)
 [![License](https://img.shields.io/badge/license-WTFPL_license-blue.svg)](https://raw.githubusercontent.com/dblume/list-photos-on-phone/main/LICENSE.txt)
-![python2.x](https://img.shields.io/badge/python-2.x-yellow.svg)
+![python2.x](https://img.shields.io/badge/python-2.x-yellow.svg) [![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 # list-photos-on-phone
 
 This is a simple Python script to run on a Windows system with an iPhone attached. It iterates the photos on the phone, and lists the ones that haven't been copied to the local disk yet.
